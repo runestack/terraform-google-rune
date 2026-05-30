@@ -1,0 +1,47 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+      - run: terraform fmt -check -recursive
+
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        path:
+          - .
+          - examples/minimal
+          - examples/edge-with-tls
+          - examples/with-bootstrap
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+      - name: terraform init
+        working-directory: ${{ matrix.path }}
+        run: terraform init -backend=false
+      - name: terraform validate
+        working-directory: ${{ matrix.path }}
+        run: terraform validate
+
+  tflint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+      - run: tflint --init
+      - run: tflint --recursive

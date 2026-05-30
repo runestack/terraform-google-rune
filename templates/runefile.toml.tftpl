@@ -1,0 +1,69 @@
+data_dir = "/var/lib/rune"
+
+[server]
+grpc_address = "${grpc_address}"
+http_address = "${http_address}"
+
+[log]
+level  = "${log_level}"
+format = "${log_format}"
+
+[networking]
+cluster_cidr = "${cluster_cidr}"
+
+[telemetry]
+metrics_addr = "${metrics_addr}"
+
+[node]
+role = "${node_role}"
+%{ if acme_email != "" ~}
+
+[acme]
+email = "${acme_email}"
+%{ endif ~}
+%{ for r in docker_registries ~}
+
+[[docker.registries]]
+name     = "${r.name}"
+registry = "${r.registry}"
+
+  [docker.registries.auth]
+%{ if r.from_secret != "" ~}
+%{ if r.from_secret_namespace != "" ~}
+  fromSecret = { name = "${r.from_secret}", namespace = "${r.from_secret_namespace}" }
+%{ else ~}
+  fromSecret = "${r.from_secret}"
+%{ endif ~}
+%{ if r.bootstrap ~}
+  bootstrap = true
+%{ endif ~}
+%{ if r.manage != "" ~}
+  manage = "${r.manage}"
+%{ endif ~}
+%{ if r.immutable ~}
+  immutable = true
+%{ endif ~}
+%{ if r.auth_type == "ecr" && r.region != "" ~}
+  region = "${r.region}"
+%{ endif ~}
+%{ if length(r.data) > 0 ~}
+
+  [docker.registries.auth.data]
+%{ for k, v in r.data ~}
+  ${k} = "${v}"
+%{ endfor ~}
+%{ endif ~}
+%{ else ~}
+  type = "${r.auth_type}"
+%{ if r.auth_type == "basic" ~}
+  username = "${r.username}"
+  password = "${r.password}"
+%{ endif ~}
+%{ if r.auth_type == "token" ~}
+  token = "${r.token}"
+%{ endif ~}
+%{ if r.auth_type == "ecr" ~}
+  region = "${r.region}"
+%{ endif ~}
+%{ endif ~}
+%{ endfor ~}

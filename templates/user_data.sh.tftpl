@@ -1,0 +1,64 @@
+#!/bin/bash
+# Cloud-init for Rune on Ubuntu (AWS EC2). Runs once per instance.
+# Logs land in /var/log/user-data.log for post-mortem.
+set -euo pipefail
+
+exec > >(tee -a /var/log/user-data.log) 2>&1
+
+echo "[rune] cloud-init starting at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+if ! command -v curl >/dev/null 2>&1; then
+  apt-get update -y -qq
+  apt-get install -y -qq curl ca-certificates
+fi
+
+# Install runed via the upstream installer. Pinned via rune_version
+# so this is reproducible across applies.
+curl -fsSL https://raw.githubusercontent.com/runestack/rune/master/scripts/install-server.sh \
+  | bash -s -- --version "${rune_version}"
+
+# Allow runed to bind low ports (80/443) for the edge ingress
+# without running as root.
+setcap 'cap_net_bind_service=+ep' /usr/local/bin/runed || true
+
+# Drop the rendered runefile.
+mkdir -p /etc/rune
+cat > /etc/rune/runefile.toml <<'RUNEFILE'
+${runefile}
+RUNEFILE
+chmod 600 /etc/rune/runefile.toml
+
+# Environment file for runed (referenced by the systemd unit below).
+# Contains values consumed by runefile bootstrap blocks
+# (e.g. registry credentials referenced by [[docker.registries]]
+# fromSecret + bootstrap + data). Always written so subsequent
+# applies that drop runed_environment leave a clean empty file.
+cat > /etc/rune/runed.env <<'RUNEDENV'
+${runed_environment}
+RUNEDENV
+chmod 600 /etc/rune/runed.env
+
+# systemd unit pointing at the rendered config.
+cat > /etc/systemd/system/runed.service <<'UNIT'
+[Unit]
+Description=Rune Server
+After=network-online.target docker.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/rune/runed.env
+ExecStart=/usr/local/bin/runed
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable runed
+systemctl restart runed
+
+echo "[rune] cloud-init complete; runed managed by systemd"

@@ -1,0 +1,24 @@
+name: docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  terraform-docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: terraform-docs/gh-actions@v1
+        with:
+          working-dir: .
+          output-file: README.md
+          output-method: inject
+          git-push: ${{ github.event_name == 'push' }}
+          git-commit-message: "docs: terraform-docs auto-update"
