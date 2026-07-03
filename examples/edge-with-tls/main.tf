@@ -21,7 +21,7 @@ module "rune" {
 
   environment    = var.environment
   zone           = var.zone
-  ssh_public_key = file(var.ssh_public_key_path)
+  ssh_public_key = file(pathexpand(var.ssh_public_key_path))
 
   node_role          = "edge"
   acme_email         = var.acme_email

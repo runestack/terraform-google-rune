@@ -18,7 +18,7 @@ module "rune" {
 
   environment    = "dev"
   zone           = var.zone
-  ssh_public_key = file(var.ssh_public_key_path)
+  ssh_public_key = file(pathexpand(var.ssh_public_key_path))
 
   # Single worker node — no edge ingress, no ACME.
   node_role = "worker"

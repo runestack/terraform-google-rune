@@ -4,6 +4,8 @@
 gcloud auth application-default login
 export TF_VAR_project="my-gcp-project"
 export TF_VAR_acme_email="ops@example.com"
+export TF_VAR_ssh_public_key_path="$HOME/.ssh/id_ed25519.pub"
+export TF_VAR_ssh_private_key_path="$HOME/.ssh/id_ed25519"
 
 terraform init
 terraform apply

@@ -7,6 +7,7 @@ default ports open to the public internet.
 gcloud auth application-default login   # or set GOOGLE_APPLICATION_CREDENTIALS
 export TF_VAR_project="my-gcp-project"
 export TF_VAR_zone="europe-west2-a"
+export TF_VAR_ssh_public_key_path="$HOME/.ssh/id_ed25519.pub"
 
 terraform init
 terraform apply
