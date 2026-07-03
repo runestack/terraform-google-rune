@@ -39,6 +39,32 @@ locals {
     runed_environment = local.runed_env_file
   })
 
+  # When enable_artifact_registry_access is set, render a registry
+  # entry that tells runed to mint Artifact Registry credentials from
+  # the instance metadata service account (auth type "gcp",
+  # runestack/rune#144) — the IAM role alone does nothing for pulls.
+  # User-supplied entries come first so an explicit pkg.dev entry
+  # wins; the auto entry is skipped entirely if one exists.
+  ar_auto_entry = var.enable_artifact_registry_access && length([
+    for r in var.docker_registries : r if length(regexall("pkg\\.dev", r.registry)) > 0
+    ]) == 0 ? [{
+    name                  = "artifact-registry"
+    registry              = "*.pkg.dev"
+    auth_type             = "gcp"
+    username              = ""
+    password              = ""
+    token                 = ""
+    region                = ""
+    from_secret           = ""
+    from_secret_namespace = ""
+    bootstrap             = false
+    manage                = ""
+    immutable             = false
+    data                  = {}
+  }] : []
+
+  effective_docker_registries = concat(var.docker_registries, local.ar_auto_entry)
+
   runefile = templatefile("${path.module}/templates/runefile.toml.tftpl", {
     grpc_address      = ":${var.grpc_port}"
     http_address      = ":${var.http_port}"
@@ -48,7 +74,7 @@ locals {
     log_format        = var.log_format
     metrics_addr      = var.metrics_addr
     acme_email        = var.acme_email
-    docker_registries = var.docker_registries
+    docker_registries = local.effective_docker_registries
   })
 
   # Service account resolution.

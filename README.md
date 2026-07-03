@@ -114,6 +114,18 @@ enable_pd_csi_access            = true   # gce-pd storage driver
 enable_artifact_registry_access = true   # private image pulls (default)
 ```
 
+`enable_artifact_registry_access` does two things: it grants the
+created service account `roles/artifactregistry.reader`, and it renders
+a `[[docker.registries]]` entry (`registry = "*.pkg.dev"`, auth type
+`gcp`) into `runefile.toml` so runed mints pull credentials from the
+instance metadata service account at pull time. Both halves are needed
+— the IAM role alone does nothing for pulls
+([runestack/rune#144](https://github.com/runestack/rune/issues/144)).
+The auto entry is skipped if you supply your own `pkg.dev` entry in
+`var.docker_registries`. Requires a rune version that ships the `gcp`
+registry-auth provider; on older versions the entry is ignored with a
+warning and pulls stay anonymous.
+
 Add extra roles with `var.additional_service_account_roles`, or skip
 module-managed IAM entirely by passing `var.service_account_email`.
 
@@ -221,7 +233,7 @@ MIT — see [LICENSE](./LICENSE).
 | <a name="input_create_firewall"></a> [create\_firewall](#input\_create\_firewall) | Create VPC firewall rules (scoped to the instance's network tag). Disable if you manage firewalls externally. | `bool` | `true` | no |
 | <a name="input_create_service_account"></a> [create\_service\_account](#input\_create\_service\_account) | Create a dedicated service account for the node and attach it. Ignored when service\_account\_email is set. | `bool` | `true` | no |
 | <a name="input_docker_registries"></a> [docker\_registries](#input\_docker\_registries) | Private Docker registries rendered into [[docker.registries]] in runefile.toml. Three shapes: (1) from\_secret reference to an externally-managed Rune Secret; (2) from\_secret + bootstrap = true + data = { ... }; (3) inline username/password/token (demo use only). For Artifact Registry, prefer the node service account with enable\_artifact\_registry\_access. | <pre>list(object({<br/>    name      = string<br/>    registry  = string<br/>    auth_type = optional(string, "basic")<br/>    username  = optional(string, "")<br/>    password  = optional(string, "")<br/>    token     = optional(string, "")<br/>    region    = optional(string, "")<br/><br/>    from_secret           = optional(string, "")<br/>    from_secret_namespace = optional(string, "")<br/>    bootstrap             = optional(bool, false)<br/>    manage                = optional(string, "")<br/>    immutable             = optional(bool, false)<br/>    data                  = optional(map(string), {})<br/>  }))</pre> | `[]` | no |
-| <a name="input_enable_artifact_registry_access"></a> [enable\_artifact\_registry\_access](#input\_enable\_artifact\_registry\_access) | Grant the created service account roles/artifactregistry.reader so runed can pull private images from Artifact Registry / GCR. Only applies when the module creates the service account. | `bool` | `true` | no |
+| <a name="input_enable_artifact_registry_access"></a> [enable\_artifact\_registry\_access](#input\_enable\_artifact\_registry\_access) | Grant the created service account roles/artifactregistry.reader (only when the module creates the service account) AND render a [[docker.registries]] entry with auth type 'gcp' for *.pkg.dev into runefile.toml, so runed authenticates private Artifact Registry pulls via the instance metadata service account. Requires rune >= the version shipping the gcp registry-auth provider (runestack/rune#144). | `bool` | `true` | no |
 | <a name="input_enable_pd_csi_access"></a> [enable\_pd\_csi\_access](#input\_enable\_pd\_csi\_access) | Grant the created service account roles/compute.storageAdmin so the gce-pd storage driver can create/attach/snapshot Persistent Disks via the instance's credentials. Only applies when the module creates the service account. | `bool` | `false` | no |
 | <a name="input_environment"></a> [environment](#input\_environment) | Environment label used in the instance name and labels (e.g. 'dev', 'prod'). | `string` | `"dev"` | no |
 | <a name="input_extra_inbound_tcp_ports"></a> [extra\_inbound\_tcp\_ports](#input\_extra\_inbound\_tcp\_ports) | Additional TCP ports to open inbound (gated by api\_allowed\_cidrs). Useful while you stand up apps before they sit behind the edge ingress. | `list(number)` | `[]` | no |

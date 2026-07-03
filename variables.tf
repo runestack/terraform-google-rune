@@ -159,7 +159,7 @@ variable "service_account_email" {
 
 variable "enable_artifact_registry_access" {
   type        = bool
-  description = "Grant the created service account roles/artifactregistry.reader so runed can pull private images from Artifact Registry / GCR. Only applies when the module creates the service account."
+  description = "Grant the created service account roles/artifactregistry.reader (only when the module creates the service account) AND render a [[docker.registries]] entry with auth type 'gcp' for *.pkg.dev into runefile.toml, so runed authenticates private Artifact Registry pulls via the instance metadata service account. Requires rune >= the version shipping the gcp registry-auth provider (runestack/rune#144)."
   default     = true
 }
 
@@ -281,9 +281,9 @@ variable "docker_registries" {
   sensitive   = true
   validation {
     condition = alltrue([
-      for r in var.docker_registries : contains(["basic", "token", "ecr"], r.auth_type)
+      for r in var.docker_registries : contains(["basic", "token", "ecr", "gcp"], r.auth_type)
     ])
-    error_message = "Each docker_registries[*].auth_type must be 'basic', 'token', or 'ecr'."
+    error_message = "Each docker_registries[*].auth_type must be 'basic', 'token', 'ecr', or 'gcp'."
   }
   validation {
     condition = alltrue([
