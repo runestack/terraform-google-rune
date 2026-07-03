@@ -26,14 +26,14 @@ module "rune" {
 
   environment    = "demo"
   zone           = var.zone
-  ssh_public_key = file(var.ssh_public_key_path)
+  ssh_public_key = file(pathexpand(var.ssh_public_key_path))
 
   node_role          = "edge"
   acme_email         = var.acme_email
   allocate_static_ip = true
 
   bootstrap                 = true
-  bootstrap_ssh_private_key = file(var.ssh_private_key_path)
+  bootstrap_ssh_private_key = file(pathexpand(var.ssh_private_key_path))
   bootstrap_token_path      = "${path.cwd}/rune-admin.token"
   bootstrap_namespace       = "default"
 
